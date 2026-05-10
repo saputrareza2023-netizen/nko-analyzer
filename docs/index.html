@@ -544,7 +544,7 @@ WAJIB kembalikan HANYA JSON valid (tanpa markdown, tanpa komentar) dengan strukt
   "action_plan": "string (rencana aksi detail bulan depan, 4-5 poin utama dengan format poin, spesifik dan measureable)"
 }`;
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('https://erhtrnykhqworpbetssy.supabase.co/functions/v1/analyze-nko', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
