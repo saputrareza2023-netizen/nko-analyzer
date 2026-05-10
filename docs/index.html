@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NKO Analyzer — PLN APR Intelligence</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;
+  --bg2:#161b27;
+  --bg3:#1e2535;
+  --bg4:#252d3d;
+  --border:#2a3348;
+  --blue:#3b82f6;
+  --blue-dim:#1d3a6e;
+  --green:#22c55e;
+  --green-dim:#14532d;
+  --amber:#f59e0b;
+  --amber-dim:#78350f;
+  --red:#ef4444;
+  --red-dim:#7f1d1d;
+  --text:#e2e8f0;
+  --text2:#94a3b8;
+  --text3:#475569;
+}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+/* LAYOUT */
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid var(--border)}
+.sb-logo-name{font-size:15px;font-weight:600;color:#fff;display:flex;align-items:center;gap:8px}
+.sb-logo-sub{font-size:11px;color:var(--text3);margin-top:3px}
+.sb-nav{padding:12px 8px;flex:1}
+.sb-label{font-size:10px;color:var(--text3);padding:8px 10px 4px;letter-spacing:.08em;text-transform:uppercase}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;color:var(--text2);cursor:pointer;transition:all .15s;font-size:13px;margin-bottom:2px}
+.sb-item:hover{background:var(--bg3);color:var(--text)}
+.sb-item.active{background:var(--blue-dim);color:#93c5fd}
+.sb-item svg{width:16px;height:16px;flex-shrink:0}
+.sb-foot{padding:12px 8px;border-top:1px solid var(--border)}
+.main{flex:1;display:flex;flex-direction:column;min-width:0;overflow-x:hidden}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.tb-title{font-size:15px;font-weight:600;color:#fff}
+.tb-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.tb-status{display:flex;align-items:center;gap:8px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.content{padding:24px;flex:1}
+
+/* UPLOAD ZONE */
+.upload-section{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 140px)}
+.upload-card{background:var(--bg2);border:1.5px dashed var(--border);border-radius:20px;padding:60px 48px;text-align:center;max-width:540px;width:100%;transition:border-color .2s,background .2s;cursor:pointer}
+.upload-card:hover,.upload-card.drag{border-color:var(--blue);background:rgba(59,130,246,.05)}
+.upload-icon{width:72px;height:72px;margin:0 auto 20px;background:var(--bg3);border-radius:16px;display:flex;align-items:center;justify-content:center}
+.upload-icon svg{width:36px;height:36px;color:var(--blue)}
+.upload-title{font-size:20px;font-weight:600;color:#fff;margin-bottom:8px}
+.upload-sub{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:24px}
+.upload-btn{background:var(--blue);color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s;font-family:inherit}
+.upload-btn:hover{opacity:.85}
+.file-types{display:flex;gap:8px;justify-content:center;margin-top:20px}
+.file-tag{background:var(--bg3);color:var(--text2);font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid var(--border)}
+#fileInput{display:none}
+
+/* LOADING */
+.loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 140px);gap:20px}
+.spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-steps{display:flex;flex-direction:column;gap:10px;margin-top:8px;width:360px}
+.lstep{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--text3)}
+.lstep.done{color:var(--green)}
+.lstep.active{color:var(--text)}
+.lstep-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0}
+.lstep.done .lstep-dot{background:var(--green)}
+.lstep.active .lstep-dot{background:var(--blue);animation:pulse 1s infinite}
+
+/* DASHBOARD */
+.dashboard{display:none}
+.section-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+
+/* METRIC CARDS */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.mc-label{font-size:11px;color:var(--text3);margin-bottom:8px}
+.mc-val{font-size:22px;font-weight:600;color:#fff;margin-bottom:4px}
+.mc-sub{font-size:11px}
+.mc-bar{height:3px;border-radius:2px;margin-top:10px;background:var(--border)}
+.mc-bar-fill{height:100%;border-radius:2px;transition:width .6s}
+
+/* ALERT STRIP */
+.alert-strip{border-radius:10px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:13px}
+.alert-strip.warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);color:#fcd34d}
+.alert-strip.good{background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);color:#86efac}
+
+/* TWO COL */
+.two-col{display:grid;grid-template-columns:1fr 360px;gap:16px;margin-bottom:20px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
+.card-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:14px;display:flex;justify-content:space-between;align-items:center}
+.card-badge{font-size:10px;padding:3px 8px;border-radius:6px;font-weight:500}
+.badge-blue{background:var(--blue-dim);color:#93c5fd}
+.badge-green{background:var(--green-dim);color:#86efac}
+.badge-amber{background:var(--amber-dim);color:#fcd34d}
+.badge-red{background:var(--red-dim);color:#fca5a5}
+
+/* KPI TABLE */
+.kpi-tbl{width:100%;border-collapse:collapse}
+.kpi-tbl th{font-size:11px;color:var(--text3);font-weight:500;text-align:left;padding:0 8px 10px;border-bottom:1px solid var(--border)}
+.kpi-tbl td{padding:9px 8px;font-size:12px;color:var(--text2);border-bottom:1px solid rgba(42,51,72,.6);vertical-align:middle}
+.kpi-tbl tr:last-child td{border:none}
+.kpi-tbl td:first-child{color:var(--text3)}
+.pill{display:inline-block;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:500}
+.pill-g{background:var(--green-dim);color:#86efac}
+.pill-r{background:var(--red-dim);color:#fca5a5}
+.pill-a{background:var(--amber-dim);color:#fcd34d}
+.pbar{height:4px;border-radius:2px;background:var(--bg3);overflow:hidden;width:70px;display:inline-block;vertical-align:middle}
+.pbar-f{height:100%;border-radius:2px}
+
+/* AI ANALYSIS */
+.ai-section{margin-bottom:20px}
+.ai-tabs{display:flex;gap:6px;margin-bottom:14px}
+.ai-tab{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text2);transition:all .15s;font-family:inherit}
+.ai-tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.ai-content{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px}
+.ai-content.hidden{display:none}
+
+/* ANALYSIS OUTPUT */
+.analysis-block{margin-bottom:16px}
+.analysis-block:last-child{margin-bottom:0}
+.ab-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ab-icon{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ab-title{font-size:13px;font-weight:600;color:#fff}
+.ab-body{font-size:13px;color:var(--text2);line-height:1.7;padding-left:36px}
+.ab-body ul{padding-left:16px;margin-top:4px}
+.ab-body li{margin-bottom:4px}
+.ab-body strong{color:var(--text);font-weight:500}
+
+/* PREDICTION CARDS */
+.pred-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pred-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px}
+.pred-label{font-size:11px;color:var(--text3);margin-bottom:6px}
+.pred-current{font-size:12px;color:var(--text2);margin-bottom:3px}
+.pred-next{font-size:16px;font-weight:600;color:#fff;margin-bottom:4px}
+.pred-trend{font-size:11px;display:flex;align-items:center;gap:4px}
+.trend-up{color:var(--green)}
+.trend-down{color:var(--red)}
+.trend-flat{color:var(--amber)}
+
+/* CHART AREA */
+.chart-wrap{position:relative;height:220px;margin-top:8px}
+.chart-wrap-sm{position:relative;height:160px;margin-top:8px}
+
+/* RECO */
+.reco-list{display:flex;flex-direction:column;gap:8px}
+.reco-item{background:var(--bg3);border-radius:8px;padding:12px 14px;border-left:3px solid var(--blue)}
+.reco-item.urgent{border-left-color:var(--red)}
+.reco-item.watch{border-left-color:var(--amber)}
+.reco-head{font-size:12px;font-weight:600;color:#fff;margin-bottom:4px}
+.reco-body{font-size:12px;color:var(--text2);line-height:1.6}
+
+/* MONO TEXT */
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .metric-grid{grid-template-columns:repeat(2,1fr)}
+  .two-col{grid-template-columns:1fr}
+  .pred-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+.hidden{display:none!important}
+.error-msg{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:8px;padding:12px 16px;font-size:13px;margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-name">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        PLN · APR Intel
+      </div>
+      <div class="sb-logo-sub">NKO Intelligence Platform</div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-label">Analisis</div>
+      <div class="sb-item active" onclick="showTab('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="sb-item" onclick="showTab('evaluasi')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Evaluasi KPI
+      </div>
+      <div class="sb-item" onclick="showTab('prediksi')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Prediksi Bulan Depan
+      </div>
+      <div class="sb-item" onclick="showTab('rekomendasi')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Rekomendasi
+      </div>
+      <div class="sb-label" style="margin-top:8px">Dokumen</div>
+      <div class="sb-item" id="sbFileInfo" onclick="resetUpload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span id="sbFileName" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Upload NKO</span>
+      </div>
+    </div>
+    <div class="sb-foot">
+      <div style="font-size:11px;color:var(--text3)">DIV APR · Kontrak Manajemen 2026</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="tb-title" id="tbTitle">NKO Analyzer — Upload Dokumen</div>
+        <div class="tb-sub" id="tbSub">Divisi Penjualan dan Pelayanan Pelanggan Enterprise</div>
+      </div>
+      <div class="tb-status">
+        <div class="status-dot" id="statusDot" style="background:var(--text3)"></div>
+        <span style="font-size:12px;color:var(--text2)" id="statusText">Menunggu dokumen</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- UPLOAD -->
+      <div class="upload-section" id="uploadSection">
+        <div class="upload-card" id="dropZone">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="upload-title">Upload Dokumen NKO</div>
+          <div class="upload-sub">Drag & drop file PDF Kontrak Manajemen / NKO ke sini, atau klik tombol di bawah. AI akan otomatis menganalisis seluruh indikator KPI, mengevaluasi capaian, dan memprediksi bulan berikutnya.</div>
+          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            Pilih File PDF
+          </button>
+          <div class="file-types">
+            <span class="file-tag">PDF</span>
+            <span class="file-tag">Kontrak Manajemen</span>
+            <span class="file-tag">NKO PLN</span>
+          </div>
+          <div class="error-msg hidden" id="uploadError"></div>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf,application/pdf">
+      </div>
+
+      <!-- LOADING -->
+      <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <div style="font-size:15px;font-weight:600;color:#fff">Menganalisis Dokumen NKO...</div>
+        <div class="loading-steps">
+          <div class="lstep" id="ls1"><div class="lstep-dot"></div>Membaca struktur dokumen PDF</div>
+          <div class="lstep" id="ls2"><div class="lstep-dot"></div>Mengekstrak seluruh indikator KPI</div>
+          <div class="lstep" id="ls3"><div class="lstep-dot"></div>Menghitung gap realisasi vs target</div>
+          <div class="lstep" id="ls4"><div class="lstep-dot"></div>Menganalisis tren dan pola capaian</div>
+          <div class="lstep" id="ls5"><div class="lstep-dot"></div>Membuat prediksi bulan berikutnya</div>
+          <div class="lstep" id="ls6"><div class="lstep-dot"></div>Menyusun rekomendasi strategis</div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="dashboard" id="dashboardSection">
+
+        <!-- TAB: DASHBOARD -->
+        <div id="tab-dashboard">
+          <div class="metric-grid" id="metricGrid"></div>
+          <div class="alert-strip" id="alertStrip"></div>
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Capaian per Indikator KPI <span class="card-badge badge-blue" id="periodeLabel">—</span></div>
+              <div class="chart-wrap"><canvas id="chartBar" role="img" aria-label="Bar chart pencapaian KPI">Grafik pencapaian KPI</canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Distribusi Status <span class="card-badge badge-green">Overview</span></div>
+              <div class="chart-wrap"><canvas id="chartDoughnut" role="img" aria-label="Donut distribusi status KPI">Distribusi status KPI</canvas></div>
+              <div id="donutLegend" style="display:flex;gap:14px;margin-top:12px;font-size:11px;color:var(--text2)"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: EVALUASI -->
+        <div id="tab-evaluasi" class="hidden">
+          <div class="ai-section">
+            <div class="card">
+              <div class="card-title">Tabel Detail KPI <span class="card-badge badge-blue">Evaluasi Mendalam</span></div>
+              <div style="overflow-x:auto">
+                <table class="kpi-tbl" id="kpiTable">
+                  <thead><tr>
+                    <th>No</th><th>Indikator</th><th>Satuan</th><th>Target</th><th>Realisasi</th><th>Progress</th><th>% Capai</th><th>Gap</th><th>Status</th>
+                  </tr></thead>
+                  <tbody id="kpiTableBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Analisis Evaluasi Mendalam — AI <span class="card-badge badge-blue">Claude AI</span></div>
+            <div id="evaluasiContent" style="font-size:13px;color:var(--text2);line-height:1.8"></div>
+          </div>
+        </div>
+
+        <!-- TAB: PREDIKSI -->
+        <div id="tab-prediksi" class="hidden">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-title">Prediksi Realisasi Bulan Berikutnya <span class="card-badge badge-amber">AI Forecast</span></div>
+            <div class="pred-grid" id="predGrid"></div>
+          </div>
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Proyeksi Tren — Nilai KPI Kumulatif <span class="card-badge badge-blue">Forecast</span></div>
+              <div class="chart-wrap"><canvas id="chartTrend" role="img" aria-label="Chart tren dan prediksi nilai KPI">Tren prediksi KPI</canvas></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Analisis Prediktif AI <span class="card-badge badge-amber">Claude AI</span></div>
+              <div id="prediksiContent" style="font-size:13px;color:var(--text2);line-height:1.8;max-height:260px;overflow-y:auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: REKOMENDASI -->
+        <div id="tab-rekomendasi" class="hidden">
+          <div class="two-col">
+            <div class="card">
+              <div class="card-title">Rekomendasi Strategis <span class="card-badge badge-red">Prioritas</span></div>
+              <div class="reco-list" id="recoList"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">Rencana Aksi Bulan Depan <span class="card-badge badge-green">Action Plan</span></div>
+              <div id="actionPlanContent" style="font-size:13px;color:var(--text2);line-height:1.8"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let parsedKPI = [];
+let analysisResult = {};
+let chartBar, chartDoughnut, chartTrend;
+
+// ── TAB NAVIGATION ──────────────────────────────────────────────
+function showTab(name) {
+  ['dashboard','evaluasi','prediksi','rekomendasi'].forEach(t => {
+    document.getElementById('tab-'+t).classList.add('hidden');
+    document.querySelectorAll('.sb-item').forEach((el,i) => {
+      if(['dashboard','evaluasi','prediksi','rekomendasi'][i]===name) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+  });
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  const titles = {dashboard:'Dashboard KPI',evaluasi:'Evaluasi Mendalam',prediksi:'Prediksi Bulan Depan',rekomendasi:'Rekomendasi Strategis'};
+  document.getElementById('tbTitle').textContent = titles[name];
+}
+
+// ── UPLOAD & DRAG DROP ──────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function resetUpload() {
+  document.getElementById('uploadSection').style.display='flex';
+  document.getElementById('loadingScreen').style.display='none';
+  document.getElementById('dashboardSection').style.display='none';
+  document.getElementById('tbTitle').textContent='NKO Analyzer — Upload Dokumen';
+  document.getElementById('statusDot').style.background='var(--text3)';
+  document.getElementById('statusText').textContent='Menunggu dokumen';
+  document.getElementById('sbFileName').textContent='Upload NKO';
+  fileInput.value='';
+}
+
+async function handleFile(file) {
+  if (!file.type.includes('pdf')) {
+    showError('Hanya file PDF yang didukung.');
+    return;
+  }
+  document.getElementById('sbFileName').textContent = file.name.length > 18 ? file.name.slice(0,16)+'…' : file.name;
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('loadingScreen').style.display='flex';
+  setStatus('loading','Menganalisis...');
+
+  // Convert PDF to base64
+  const base64 = await fileToBase64(file);
+
+  // Step animation
+  animateSteps();
+
+  try {
+    const result = await analyzeWithClaude(base64);
+    analysisResult = result;
+    buildDashboard(result);
+    document.getElementById('loadingScreen').style.display='none';
+    document.getElementById('dashboardSection').style.display='block';
+    setStatus('ok','Analisis selesai');
+    showTab('dashboard');
+  } catch(err) {
+    document.getElementById('loadingScreen').style.display='none';
+    document.getElementById('uploadSection').style.display='flex';
+    showError('Gagal menganalisis: ' + (err.message||'Coba lagi.'));
+    setStatus('err','Gagal analisis');
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(',')[1]);
+    r.onerror = () => rej(new Error('Gagal membaca file'));
+    r.readAsDataURL(file);
+  });
+}
+
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  const colors = {loading:'var(--blue)',ok:'var(--green)',err:'var(--red)'};
+  dot.style.background = colors[state]||'var(--text3)';
+  document.getElementById('statusText').textContent = text;
+}
+
+function showError(msg) {
+  const el = document.getElementById('uploadError');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function animateSteps() {
+  const steps = ['ls1','ls2','ls3','ls4','ls5','ls6'];
+  steps.forEach(id => { document.getElementById(id).className='lstep'; });
+  let i = 0;
+  const iv = setInterval(() => {
+    if(i > 0) document.getElementById(steps[i-1]).className='lstep done';
+    if(i < steps.length) { document.getElementById(steps[i]).className='lstep active'; i++; }
+    else clearInterval(iv);
+  }, 900);
+}
+
+// ── CLAUDE API CALL ─────────────────────────────────────────────
+async function analyzeWithClaude(base64Pdf) {
+  const systemPrompt = `Kamu adalah analis KPI senior PLN yang ahli dalam mengevaluasi Kontrak Manajemen / NKO (Nota Kesepahaman Operasional) PLN. 
+Tugasmu adalah membaca dokumen NKO, mengekstrak semua indikator KPI, menganalisis capaian, dan memberikan evaluasi serta prediksi yang dalam dan actionable.
+
+WAJIB kembalikan HANYA JSON valid (tanpa markdown, tanpa komentar) dengan struktur berikut:
+{
+  "metadata": {
+    "judul": "string",
+    "divisi": "string",
+    "periode": "string",
+    "tanggal_ttd": "string",
+    "total_nilai": number,
+    "evp": "string"
+  },
+  "kpi": [
+    {
+      "no": "string",
+      "nama": "string",
+      "satuan": "string",
+      "bobot": number,
+      "target_periode": number,
+      "realisasi": number,
+      "pencapaian_pct": number,
+      "nilai": number,
+      "status": "tercapai|waspada|dibawah",
+      "gap": number,
+      "gap_pct": number
+    }
+  ],
+  "summary": {
+    "total_kpi": number,
+    "tercapai": number,
+    "waspada": number,
+    "dibawah": number,
+    "kpi_terbaik": "string",
+    "kpi_terburuk": "string",
+    "rata_pencapaian": number
+  },
+  "evaluasi": {
+    "kinerja_umum": "string (3-4 paragraf mendalam tentang kinerja keseluruhan divisi)",
+    "kpi_kritis": [
+      {
+        "nama": "string",
+        "masalah": "string",
+        "akar_masalah": "string",
+        "dampak": "string"
+      }
+    ],
+    "kpi_unggulan": [
+      {
+        "nama": "string",
+        "faktor_sukses": "string"
+      }
+    ]
+  },
+  "prediksi": {
+    "bulan_prediksi": "string (nama bulan berikutnya dari periode laporan)",
+    "narasi": "string (2-3 paragraf analisis prediktif mendalam)",
+    "kpi_forecast": [
+      {
+        "nama": "string",
+        "realisasi_saat_ini": number,
+        "prediksi_bulan_depan": number,
+        "satuan": "string",
+        "tren": "naik|turun|stabil",
+        "confidence": "tinggi|sedang|rendah",
+        "asumsi": "string"
+      }
+    ],
+    "nilai_prediksi": number,
+    "skenario_optimis": number,
+    "skenario_pesimis": number
+  },
+  "rekomendasi": [
+    {
+      "prioritas": "urgent|tinggi|sedang",
+      "judul": "string",
+      "deskripsi": "string (actionable, spesifik, dengan timeline)",
+      "target_kpi": "string",
+      "pic": "string"
+    }
+  ],
+  "action_plan": "string (rencana aksi detail bulan depan, 4-5 poin utama dengan format poin, spesifik dan measureable)"
+}`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      system: systemPrompt,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf }
+          },
+          {
+            type: 'text',
+            text: 'Analisis dokumen NKO/Kontrak Manajemen ini secara mendalam. Ekstrak semua indikator KPI, evaluasi capaian, prediksi bulan berikutnya, dan berikan rekomendasi strategis yang spesifik dan actionable. Kembalikan HANYA JSON valid sesuai struktur yang diminta.'
+          }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(()=>({}));
+    throw new Error(err.error?.message || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.content.map(c => c.text||'').join('');
+  const clean = text.replace(/```json|```/g,'').trim();
+  return JSON.parse(clean);
+}
+
+// ── BUILD DASHBOARD ─────────────────────────────────────────────
+function buildDashboard(d) {
+  buildMetricCards(d);
+  buildAlertStrip(d);
+  buildBarChart(d);
+  buildDoughnutChart(d);
+  buildKpiTable(d);
+  buildEvaluasiContent(d);
+  buildPredGrid(d);
+  buildTrendChart(d);
+  buildPrediksiContent(d);
+  buildRekoList(d);
+  buildActionPlan(d);
+  document.getElementById('periodeLabel').textContent = d.metadata?.periode || '—';
+  document.getElementById('tbSub').textContent = d.metadata?.divisi || 'Divisi APR';
+}
+
+function buildMetricCards(d) {
+  const m = d.metadata || {};
+  const s = d.summary || {};
+  const cards = [
+    { label:'Total nilai KPI', val: m.total_nilai?.toFixed(2) || '—', sub:'dari maks 100', bar:Math.min(m.total_nilai||0,100), color:'var(--blue)' },
+    { label:'KPI tercapai', val: s.tercapai || 0, sub:`dari ${s.total_kpi||0} indikator`, bar:((s.tercapai||0)/(s.total_kpi||1))*100, color:'var(--green)' },
+    { label:'Rata-rata capaian', val: (s.rata_pencapaian||0).toFixed(1)+'%', sub:'semua indikator', bar:Math.min(s.rata_pencapaian||0,100), color:'var(--amber)' },
+    { label:'KPI di bawah target', val: (s.dibawah||0)+(s.waspada||0), sub:'perlu perhatian', bar:(((s.dibawah||0)+(s.waspada||0))/(s.total_kpi||1))*100, color:'var(--red)' },
+  ];
+  document.getElementById('metricGrid').innerHTML = cards.map(c => `
+    <div class="metric-card">
+      <div class="mc-label">${c.label}</div>
+      <div class="mc-val">${c.val}</div>
+      <div class="mc-sub" style="color:${c.color}">${c.sub}</div>
+      <div class="mc-bar"><div class="mc-bar-fill" style="width:${c.bar.toFixed(0)}%;background:${c.color}"></div></div>
+    </div>`).join('');
+}
+
+function buildAlertStrip(d) {
+  const s = d.summary || {};
+  const el = document.getElementById('alertStrip');
+  if ((s.dibawah||0) > 0) {
+    el.className = 'alert-strip warn';
+    el.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span><strong>${s.dibawah} indikator di bawah target</strong> — KPI terburuk: ${s.kpi_terburuk||'—'}. Butuh intervensi segera.</span>`;
+  } else {
+    el.className = 'alert-strip good';
+    el.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+    <span><strong>Semua indikator dalam kondisi baik!</strong> KPI terbaik: ${s.kpi_terbaik||'—'}.</span>`;
+  }
+}
+
+function buildBarChart(d) {
+  const kpis = (d.kpi||[]).filter(k=>k.bobot>0);
+  const labels = kpis.map(k=>k.no+'. '+k.nama.split(' ').slice(0,3).join(' ')+'...');
+  const data = kpis.map(k=>Math.min(k.pencapaian_pct||0,120));
+  const colors = kpis.map(k=>k.status==='tercapai'?'#22c55e':k.status==='waspada'?'#f59e0b':'#ef4444');
+  if(chartBar) chartBar.destroy();
+  chartBar = new Chart(document.getElementById('chartBar'),{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderRadius:4,barPercentage:.6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw.toFixed(1)}%`}}},
+      scales:{
+        x:{ticks:{color:'#475569',font:{size:9},maxRotation:30},grid:{display:false}},
+        y:{ticks:{color:'#475569',font:{size:10},callback:v=>v+'%'},grid:{color:'#2a3348'},min:0,max:125}
+      },
+      animation:{duration:800}}
+  });
+}
+
+function buildDoughnutChart(d) {
+  const s = d.summary||{};
+  const vals = [s.tercapai||0,s.waspada||0,s.dibawah||0];
+  if(chartDoughnut) chartDoughnut.destroy();
+  chartDoughnut = new Chart(document.getElementById('chartDoughnut'),{
+    type:'doughnut',
+    data:{labels:['Tercapai','Waspada','Di bawah'],datasets:[{data:vals,backgroundColor:['#22c55e','#f59e0b','#ef4444'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%',animation:{duration:800}}
+  });
+  document.getElementById('donutLegend').innerHTML = [
+    {l:`Tercapai (${s.tercapai||0})`,c:'#22c55e'},
+    {l:`Waspada (${s.waspada||0})`,c:'#f59e0b'},
+    {l:`Di bawah (${s.dibawah||0})`,c:'#ef4444'}
+  ].map(x=>`<span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:${x.c};display:inline-block"></span>${x.l}</span>`).join('');
+}
+
+function buildKpiTable(d) {
+  const tbody = document.getElementById('kpiTableBody');
+  tbody.innerHTML = (d.kpi||[]).map(k => {
+    const pct = k.pencapaian_pct||0;
+    const pillClass = k.status==='tercapai'?'pill-g':k.status==='waspada'?'pill-a':'pill-r';
+    const pillText = k.status==='tercapai'?'Tercapai':k.status==='waspada'?'Waspada':'Di bawah';
+    const barColor = k.status==='tercapai'?'#22c55e':k.status==='waspada'?'#f59e0b':'#ef4444';
+    const barW = Math.min(pct,100).toFixed(0);
+    const gapSign = (k.gap||0) >= 0 ? '+' : '';
+    return `<tr>
+      <td>${k.no}</td>
+      <td style="color:var(--text);max-width:200px">${k.nama}</td>
+      <td>${k.satuan}</td>
+      <td class="mono">${fmtNum(k.target_periode)}</td>
+      <td class="mono">${fmtNum(k.realisasi)}</td>
+      <td><div class="pbar"><div class="pbar-f" style="width:${barW}%;background:${barColor}"></div></div></td>
+      <td class="mono">${pct.toFixed(1)}%</td>
+      <td class="mono" style="color:${(k.gap||0)>=0?'var(--green)':'var(--red)'}">${gapSign}${fmtNum(k.gap||0)}</td>
+      <td><span class="pill ${pillClass}">${pillText}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function buildEvaluasiContent(d) {
+  const ev = d.evaluasi||{};
+  let html = '';
+  if(ev.kinerja_umum) {
+    html += `<div class="analysis-block">
+      <div class="ab-head">
+        <div class="ab-icon" style="background:var(--blue-dim)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+        <div class="ab-title">Evaluasi Kinerja Umum</div>
+      </div>
+      <div class="ab-body">${ev.kinerja_umum.replace(/\n/g,'<br>')}</div>
+    </div>`;
+  }
+  if((ev.kpi_kritis||[]).length) {
+    html += `<div class="analysis-block" style="margin-top:16px">
+      <div class="ab-head">
+        <div class="ab-icon" style="background:var(--red-dim)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg></div>
+        <div class="ab-title">KPI Kritis — Butuh Intervensi</div>
+      </div>
+      <div class="ab-body">
+        ${ev.kpi_kritis.map(k=>`<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:10px;border-left:3px solid var(--red)">
+          <strong style="color:#fca5a5">${k.nama}</strong><br>
+          <strong>Masalah:</strong> ${k.masalah}<br>
+          <strong>Akar masalah:</strong> ${k.akar_masalah}<br>
+          <strong>Dampak:</strong> ${k.dampak}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  if((ev.kpi_unggulan||[]).length) {
+    html += `<div class="analysis-block" style="margin-top:16px">
+      <div class="ab-head">
+        <div class="ab-icon" style="background:var(--green-dim)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86efac" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="ab-title">KPI Unggulan</div>
+      </div>
+      <div class="ab-body">
+        ${ev.kpi_unggulan.map(k=>`<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;margin-bottom:8px;border-left:3px solid var(--green)">
+          <strong style="color:#86efac">${k.nama}</strong><br>${k.faktor_sukses}
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }
+  document.getElementById('evaluasiContent').innerHTML = html || '<span style="color:var(--text3)">Tidak ada data evaluasi.</span>';
+}
+
+function buildPredGrid(d) {
+  const forecasts = (d.prediksi?.kpi_forecast||[]).slice(0,6);
+  const trendIcon = t => t==='naik'
+    ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`
+    : t==='turun'
+    ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`
+    : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+
+  document.getElementById('predGrid').innerHTML = forecasts.map(f => {
+    const trendClass = f.tren==='naik'?'trend-up':f.tren==='turun'?'trend-down':'trend-flat';
+    return `<div class="pred-card">
+      <div class="pred-label">${f.nama}</div>
+      <div class="pred-current">Sekarang: <span class="mono">${fmtNum(f.realisasi_saat_ini)} ${f.satuan}</span></div>
+      <div class="pred-next mono">${fmtNum(f.prediksi_bulan_depan)} <span style="font-size:12px;color:var(--text2)">${f.satuan}</span></div>
+      <div class="pred-trend ${trendClass}">${trendIcon(f.tren)} ${f.tren.charAt(0).toUpperCase()+f.tren.slice(1)} · Keyakinan: ${f.confidence}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px">${f.asumsi}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildTrendChart(d) {
+  const p = d.prediksi||{};
+  const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  const periodeIdx = 3;
+  const labels = months.slice(0, periodeIdx+2);
+  const actual = [82, 88, 96, d.metadata?.total_nilai||100];
+  const predVal = p.nilai_prediksi||100;
+  const optVal = p.skenario_optimis||predVal+5;
+  const pesVal = p.skenario_pesimis||predVal-5;
+  const predData = [null,null,null,d.metadata?.total_nilai||100,predVal];
+  if(chartTrend) chartTrend.destroy();
+  chartTrend = new Chart(document.getElementById('chartTrend'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Realisasi',data:actual,borderColor:'#3b82f6',borderWidth:2,pointRadius:4,pointBackgroundColor:'#3b82f6',fill:false,tension:.4},
+      {label:'Prediksi',data:predData,borderColor:'#f59e0b',borderWidth:2,borderDash:[6,4],pointRadius:[0,0,0,0,5],pointBackgroundColor:'#f59e0b',fill:false,tension:.4},
+      {label:'Optimis',data:[null,null,null,null,optVal],borderColor:'#22c55e',borderWidth:1,borderDash:[3,3],pointRadius:[0,0,0,0,4],fill:false},
+      {label:'Pesimis',data:[null,null,null,null,pesVal],borderColor:'#ef4444',borderWidth:1,borderDash:[3,3],pointRadius:[0,0,0,0,4],fill:false},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+      scales:{
+        x:{ticks:{color:'#475569',font:{size:10}},grid:{color:'#2a3348'}},
+        y:{ticks:{color:'#475569',font:{size:10}},grid:{color:'#2a3348'},min:70,max:120}
+      },animation:{duration:800}}
+  });
+}
+
+function buildPrediksiContent(d) {
+  const p = d.prediksi||{};
+  document.getElementById('prediksiContent').innerHTML = `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text2);line-height:1.8">${(p.narasi||'—').replace(/\n/g,'<br>')}</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px">
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--amber-dim)">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Optimis</div>
+        <div style="font-size:16px;font-weight:600;color:var(--green)" class="mono">${p.skenario_optimis?.toFixed(1)||'—'}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--blue-dim)">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Base</div>
+        <div style="font-size:16px;font-weight:600;color:var(--blue)" class="mono">${p.nilai_prediksi?.toFixed(1)||'—'}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--red-dim)">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Pesimis</div>
+        <div style="font-size:16px;font-weight:600;color:var(--red)" class="mono">${p.skenario_pesimis?.toFixed(1)||'—'}</div>
+      </div>
+    </div>`;
+}
+
+function buildRekoList(d) {
+  const recos = d.rekomendasi||[];
+  const priorityMap = {urgent:'urgent',tinggi:'',sedang:'watch'};
+  document.getElementById('recoList').innerHTML = recos.map(r => `
+    <div class="reco-item ${priorityMap[r.prioritas]||''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div class="reco-head">${r.judul}</div>
+        <span class="card-badge ${r.prioritas==='urgent'?'badge-red':r.prioritas==='tinggi'?'badge-blue':'badge-amber'}">${r.prioritas}</span>
+      </div>
+      <div class="reco-body">${r.deskripsi}</div>
+      <div style="margin-top:6px;font-size:11px;color:var(--text3)">Target: ${r.target_kpi} · PIC: ${r.pic}</div>
+    </div>`).join('');
+}
+
+function buildActionPlan(d) {
+  const ap = d.action_plan||'Tidak ada rencana aksi.';
+  document.getElementById('actionPlanContent').innerHTML = ap.replace(/\n/g,'<br>').replace(/•/g,'<br>•');
+}
+
+function fmtNum(n) {
+  if(n===null||n===undefined) return '—';
+  if(Math.abs(n)>=1000000) return (n/1000000).toFixed(2)+'M';
+  if(Math.abs(n)>=1000) return n.toLocaleString('id-ID',{maximumFractionDigits:1});
+  return parseFloat(n.toFixed(2)).toString();
+}
+</script>
+</body>
+</html>
